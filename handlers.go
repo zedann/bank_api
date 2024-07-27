@@ -2,12 +2,19 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 )
 
 func HandleGetAccounts(w http.ResponseWriter, r *http.Request) error {
-	return errors.New("NOT FOUND")
+	apiServer := GetTheApiServer()
+
+	accounts, err := apiServer.Store.GetAccounts(10)
+
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, accounts)
 }
 func HandleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)

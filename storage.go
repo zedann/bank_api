@@ -8,6 +8,7 @@ import (
 )
 
 type Storage interface {
+	GetAccounts(int) ([]*Account, error)
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
@@ -43,7 +44,36 @@ func NewPostgresStore(pc PostgresConfig) (*PostgresStore, error) {
 func (s *PostgresStore) Init() error {
 	return s.CreateAccountTable()
 }
+func (s *PostgresStore) GetAccounts(limit int) ([]*Account, error) {
+	query := `SELECT * FROM accounts LIMIT $1;`
+	rows, err := s.db.Query(query, limit)
 
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var accounts []*Account
+
+	for rows.Next() {
+		account := new(Account)
+
+		if err := rows.Scan(&account.ID, &account.FirstName, &account.LastName, &account.Number,
+			&account.Balance, &account.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		accounts = append(accounts, account)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
+
+}
 func (s *PostgresStore) CreateAccount(acc *Account) error {
 	query := `INSERT INTO accounts (first_name , last_name , number ,balance , created_at) VALUES ($1,$2,$3,$4,$5)`
 	_, err := s.db.Query(query,
