@@ -2,8 +2,45 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+func HandleLogin(w http.ResponseWriter, r *http.Request) error {
+	loginReq := new(LoginRequest)
+
+	if err := json.NewDecoder(r.Body).Decode(loginReq); err != nil {
+		return err
+	}
+
+	acc, err := GetTheApiServer().Store.GetAccountByNumber(int(loginReq.Number))
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%+v\n", acc)
+	if err := bcrypt.CompareHashAndPassword([]byte(acc.EncryptedPassword), []byte(loginReq.Password)); err != nil {
+		return err
+	}
+
+	// create jwt token and return it
+
+	tokenStr, err := CreateJWT(acc)
+
+	// TODO: Create Cookie and Send it to the client
+
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, map[string]any{
+		"status": "success",
+		"token":  tokenStr,
+		"data":   acc,
+	})
+}
 
 func HandleGetAccounts(w http.ResponseWriter, r *http.Request) error {
 	apiServer := GetTheApiServer()
@@ -16,6 +53,7 @@ func HandleGetAccounts(w http.ResponseWriter, r *http.Request) error {
 
 	return WriteJson(w, http.StatusOK, accounts)
 }
+
 func HandleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)
 	if err != nil {
@@ -33,6 +71,7 @@ func HandleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	return WriteJson(w, http.StatusOK, account)
 
 }
+
 func HandleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	apiServer := GetTheApiServer()
 
@@ -42,7 +81,7 @@ func HandleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	account, err := NewAccount(createdAccReq.FirstName, createdAccReq.LastName)
+	account, err := NewAccount(createdAccReq.FirstName, createdAccReq.LastName, createdAccReq.Password)
 
 	if err != nil {
 		return err
@@ -62,7 +101,9 @@ func HandleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 		"token":  token,
 		"data":   account,
 	})
+
 }
+
 func HandleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)
 

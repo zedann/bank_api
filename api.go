@@ -16,7 +16,6 @@ type APIServer struct {
 var apiServer *APIServer
 
 func NewAPIServer(listenAddr string, store Storage) *APIServer {
-
 	apiServer = &APIServer{
 		ListenAddr: listenAddr,
 		Store:      store,
@@ -31,6 +30,7 @@ func GetTheApiServer() *APIServer {
 func (s *APIServer) Serve() {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/login", HTTPHandleFunc(HandleLogin)).Methods("POST")
 	router.HandleFunc("/accounts", HTTPHandleFunc(HandleGetAccounts)).Methods("GET")
 	router.HandleFunc("/accounts/{id}", WithJWTAuth(HTTPHandleFunc(HandleGetAccountByID))).Methods("GET")
 	router.HandleFunc("/accounts", HTTPHandleFunc(HandleCreateAccount)).Methods("POST")

@@ -13,6 +13,7 @@ type Storage interface {
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
+	GetAccountByNumber(int) (*Account, error)
 }
 
 type PostgresStore struct {
@@ -74,10 +75,11 @@ func (s *PostgresStore) GetAccounts(limit int) ([]*Account, error) {
 
 }
 func (s *PostgresStore) CreateAccount(acc *Account) error {
-	query := `INSERT INTO accounts (first_name , last_name , number ,balance , created_at) VALUES ($1,$2,$3,$4,$5)`
+	query := `INSERT INTO accounts (first_name , last_name, password , number , balance , created_at) VALUES ($1,$2,$3,$4,$5,$6)`
 	_, err := s.db.Query(query,
 		acc.FirstName,
 		acc.LastName,
+		acc.EncryptedPassword,
 		acc.Number,
 		acc.Balance,
 		acc.CreatedAt,
@@ -103,6 +105,24 @@ func (s *PostgresStore) UpdateAccount(acc *Account) error {
 
 	return nil
 }
+
+func (s *PostgresStore) GetAccountByNumber(number int) (*Account, error) {
+
+	query := `SELECT * FROM accounts WHERE number = $1`
+	rows, err := s.db.Query(query, number)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		return scanIntoAccount(rows)
+	}
+	return nil, fmt.Errorf("account with number: %d -> not found", number)
+}
+
 func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 
 	query := `SELECT * FROM accounts WHERE id = $1`
@@ -126,6 +146,7 @@ func (s *PostgresStore) CreateAccountTable() error {
 			id SERIAL,
 			first_name varchar(50),
 			last_name varchar(50),
+			password varchar(255),
 			number SERIAL,
 			balance NUMERIC(9,2),
 			created_at TIMESTAMP,
@@ -154,6 +175,7 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 	err := rows.Scan(&account.ID,
 		&account.FirstName,
 		&account.LastName,
+		&account.EncryptedPassword,
 		&account.Number,
 		&account.Balance,
 		&account.CreatedAt)
