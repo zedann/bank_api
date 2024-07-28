@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type APIServer struct {
@@ -31,11 +32,21 @@ func (s *APIServer) Serve() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/accounts", HTTPHandleFunc(HandleGetAccounts)).Methods("GET")
-	router.HandleFunc("/accounts/{id}", HTTPHandleFunc(HandleGetAccountByID)).Methods("GET")
+	router.HandleFunc("/accounts/{id}", WithJWTAuth(HTTPHandleFunc(HandleGetAccountByID))).Methods("GET")
 	router.HandleFunc("/accounts", HTTPHandleFunc(HandleCreateAccount)).Methods("POST")
 	router.HandleFunc("/accounts/{id}", HTTPHandleFunc(HandleDeleteAccount)).Methods("DELETE")
+	router.HandleFunc("/transfer", HTTPHandleFunc(HandleTransfer)).Methods("POST")
 
 	fmt.Println("JSON API RUN ON SERVER AT ", s.ListenAddr)
 
-	http.ListenAndServe(s.ListenAddr, router)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"}, // Allowing all origins, you should change this to specific origins in production
+		AllowedMethods: []string{"GET", "POST", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		Debug:          true, // Enable debug mode to see logs
+	})
+
+	// Wrap the router with the CORS handler
+	handler := c.Handler(router)
+	http.ListenAndServe(s.ListenAddr, handler)
 }

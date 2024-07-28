@@ -52,11 +52,39 @@ func HandleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return WriteJson(w, http.StatusCreated, account)
+	token, err := CreateJWT(account)
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusCreated, map[string]any{
+		"status": "success",
+		"token":  token,
+		"data":   account,
+	})
 }
 func HandleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	id, err := getID(r)
+
+	if err != nil {
+		return err
+	}
+
+	apiServer := GetTheApiServer()
+	if err := apiServer.Store.DeleteAccount(id); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, map[string]int{"deleted": id})
 }
+
 func HandleTransfer(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	transferReq := new(TransferRequest)
+
+	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
+		return err
+	}
+
+	defer r.Body.Close()
+
+	return WriteJson(w, http.StatusOK, transferReq)
 }
